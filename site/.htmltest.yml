@@ -12,8 +12,8 @@ EnforceHTTPS: false
 IgnoreInternalEmptyHash: true
 IgnoreEmptyHref: true
 TestFilesConcurrently: false
-DocumentConcurrencyLimit: 64
-HTTPConcurrencyLimit: 8
+DocumentConcurrencyLimit: 1
+HTTPConcurrencyLimit: 1
 IgnoreURLs:
 - "youtu.be"
 - "youtube.com"
