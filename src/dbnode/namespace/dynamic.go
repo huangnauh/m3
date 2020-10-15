@@ -107,30 +107,46 @@ func newDynamicRegistry(opts DynamicOptions) (Registry, error) {
 	}
 
 	logger := opts.InstrumentOptions().Logger()
-	logger.Info("waiting for dynamic namespace registry initialization, " +
-		"if this takes a long time, make sure that a namespace is configured")
-	<-watch.C()
-	logger.Info("initial namespace value received")
+	var (
+		watchable = xwatch.NewWatchable()
+		dt        *dynamicRegistry
+	)
+	if opts.WaitForInitialNamespaceUpdate() {
+		logger.Info("waiting for dynamic namespace registry initialization, " +
+			"if this takes a long time, make sure that a namespace is configured")
 
-	initValue := watch.Get()
-	m, err := getMapFromUpdate(initValue, opts.ForceColdWritesEnabled())
-	if err != nil {
-		logger.Error("dynamic namespace registry received invalid initial value", zap.Error(err))
-		return nil, err
+		<-watch.C()
+
+		logger.Info("initial namespace value received")
+
+		initValue := watch.Get()
+		m, err := getMapFromUpdate(initValue, opts.ForceColdWritesEnabled())
+		if err != nil {
+			logger.Error("dynamic namespace registry received invalid initial value", zap.Error(err))
+			return nil, err
+		}
+
+		watchable.Update(m)
+
+		dt = &dynamicRegistry{
+			opts:         opts,
+			logger:       logger,
+			metrics:      newDynamicRegistryMetrics(opts),
+			watchable:    watchable,
+			kvWatch:      watch,
+			currentValue: initValue,
+			currentMap:   m,
+		}
+	} else {
+		dt = &dynamicRegistry{
+			opts:      opts,
+			logger:    logger,
+			metrics:   newDynamicRegistryMetrics(opts),
+			watchable: watchable,
+			kvWatch:   watch,
+		}
 	}
 
-	watchable := xwatch.NewWatchable()
-	watchable.Update(m)
-
-	dt := &dynamicRegistry{
-		opts:         opts,
-		logger:       logger,
-		metrics:      newDynamicRegistryMetrics(opts),
-		watchable:    watchable,
-		kvWatch:      watch,
-		currentValue: initValue,
-		currentMap:   m,
-	}
 	go dt.run()
 	go dt.reportMetrics()
 	return dt, nil
@@ -164,7 +180,9 @@ func (r *dynamicRegistry) reportMetrics() {
 			return
 		}
 
-		r.metrics.currentVersion.Update(float64(r.value().Version()))
+		if r.value() != nil {
+			r.metrics.currentVersion.Update(float64(r.value().Version()))
+		}
 	}
 }
 
@@ -182,7 +200,7 @@ func (r *dynamicRegistry) run() {
 			continue
 		}
 
-		if !val.IsNewer(r.currentValue) {
+		if r.currentValue != nil && !val.IsNewer(r.currentValue) {
 			r.metrics.numInvalidUpdates.Inc(1)
 			r.logger.Warn("dynamic namespace registry received older version, skipping",
 				zap.Int("version", val.Version()))
@@ -197,7 +215,7 @@ func (r *dynamicRegistry) run() {
 			continue
 		}
 
-		if m.Equal(r.maps()) {
+		if r.maps() != nil && m.Equal(r.maps()) {
 			r.metrics.numInvalidUpdates.Inc(1)
 			r.logger.Warn("dynamic namespace registry received identical update, skipping",
 				zap.Int("version", val.Version()))

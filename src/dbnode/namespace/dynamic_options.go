@@ -29,8 +29,9 @@ import (
 )
 
 const (
-	defaultInitTimeout   = 30 * time.Second
-	defaultNsRegistryKey = "m3db.node.namespace_registry"
+	defaultInitTimeout                   = 30 * time.Second
+	defaultNsRegistryKey                 = "m3db.node.namespace_registry"
+	defaultWaitForInitialNamespaceUpdate = true
 )
 
 var (
@@ -40,19 +41,21 @@ var (
 )
 
 type dynamicOpts struct {
-	iopts                  instrument.Options
-	csClient               client.Client
-	nsRegistryKey          string
-	initTimeout            time.Duration
-	forceColdWritesEnabled bool
+	iopts                         instrument.Options
+	csClient                      client.Client
+	nsRegistryKey                 string
+	initTimeout                   time.Duration
+	forceColdWritesEnabled        bool
+	waitForInitialNamespaceUpdate bool
 }
 
 // NewDynamicOptions creates a new DynamicOptions
 func NewDynamicOptions() DynamicOptions {
 	return &dynamicOpts{
-		iopts:         instrument.NewOptions(),
-		nsRegistryKey: defaultNsRegistryKey,
-		initTimeout:   defaultInitTimeout,
+		iopts:                         instrument.NewOptions(),
+		nsRegistryKey:                 defaultNsRegistryKey,
+		initTimeout:                   defaultInitTimeout,
+		waitForInitialNamespaceUpdate: defaultWaitForInitialNamespaceUpdate,
 	}
 }
 
@@ -107,4 +110,14 @@ func (o *dynamicOpts) SetForceColdWritesEnabled(enabled bool) DynamicOptions {
 
 func (o *dynamicOpts) ForceColdWritesEnabled() bool {
 	return o.forceColdWritesEnabled
+}
+
+func (o *dynamicOpts) SetWaitForInitialNamespaceUpdate(value bool) DynamicOptions {
+	opts := *o
+	opts.waitForInitialNamespaceUpdate = value
+	return &opts
+}
+
+func (o *dynamicOpts) WaitForInitialNamespaceUpdate() bool {
+	return o.waitForInitialNamespaceUpdate
 }

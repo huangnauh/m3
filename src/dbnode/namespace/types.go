@@ -297,6 +297,14 @@ type DynamicOptions interface {
 	// ForceColdWritesEnabled returns whether or not to force enable cold writes
 	// for all ns.
 	ForceColdWritesEnabled() bool
+
+	// SetWaitForInitialNamespaceUpdates sets whether to synchronously wait for the
+	// first update after setting a namespace watch.
+	SetWaitForInitialNamespaceUpdate(value bool) DynamicOptions
+
+	// WaitForInitialNamespaceUpdate returns whether to synchronously wait for the
+	// first update after setting a namespace watch.
+	WaitForInitialNamespaceUpdate() bool
 }
 
 // NamespaceWatch watches for namespace updates.
